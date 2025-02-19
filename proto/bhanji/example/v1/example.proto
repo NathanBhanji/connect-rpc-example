@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package bhanji.example.v1;
+
+message EncryptRequest {
+  string input = 1;
+}
+
+message EncryptResponse {
+  string output = 1;
+}
+
+message DecryptRequest {
+  string input = 1;
+}
+
+message DecryptResponse {
+  string output = 1;
+}
+
+service ExampleEncryptService {
+  rpc Encrypt(EncryptRequest) returns (EncryptResponse) {}
+  rpc Decrypt(DecryptRequest) returns (DecryptResponse) {}
+}
