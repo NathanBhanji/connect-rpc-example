@@ -1,13 +1,14 @@
 import type { ConnectRouter } from "@connectrpc/connect";
-import { ExampleEncryptService } from "./gen/bhanji/example/v1/example_pb";
+import { ExampleEncryptService } from "@services/bhanji/example/v1/example_pb.js";
+import { EncryptRequest } from "@services/bhanji/example/v1/example_pb.js";
 
-export default (router: ConnectRouter) =>
+export const routes = (router: ConnectRouter) =>
   router.service(ExampleEncryptService, {
-    async encrypt(req) {
+    async encrypt(req: EncryptRequest) {
       // Simple Caesar cipher with shift of 3
       const encrypted = req.input
         .split("")
-        .map((char) => {
+        .map((char: string) => {
           if (char.match(/[a-zA-Z]/)) {
             const code = char.charCodeAt(0);
             const isUpperCase = code >= 65 && code <= 90;
@@ -42,3 +43,5 @@ export default (router: ConnectRouter) =>
       };
     },
   });
+
+export default routes;

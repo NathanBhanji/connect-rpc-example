@@ -12,7 +12,7 @@ import {
   ServerReflectionResponse,
   ServerReflectionResponseSchema,
   ServiceResponseSchema,
-} from "./gen/grpc/reflection/v1/reflection_pb";
+} from "@services/grpc/reflection/v1/reflection_pb.js";
 import {
   ErrorResponseSchema as ErrorResponseSchemaV1Alpha,
   FileDescriptorResponseSchema as FileDescriptorResponseSchemaV1Alpha,
@@ -22,7 +22,7 @@ import {
   ServerReflectionResponse as ServerReflectionV1AlphaResponse,
   ServerReflectionResponseSchema as ServerReflectionV1AlphaResponseSchema,
   ServiceResponseSchema as ServiceResponseSchemaV1Alpha,
-} from "./gen/grpc/reflection/v1alpha/reflection_pb";
+} from "@services/grpc/reflection/v1alpha/reflection_pb.js";
 
 class ReflectionRegistry {
   private static instance: ReflectionRegistry;
@@ -85,19 +85,45 @@ class ReflectionRouter implements ConnectRouter {
   }
 }
 
+// New helper functions to handle common reflection logic
+function handleFileDescriptorResponse(file: GenFile) {
+  return {
+    case: "fileDescriptorResponse" as const,
+    value: create(FileDescriptorResponseSchema, {
+      fileDescriptorProto: [toBinary(FileDescriptorProtoSchema, file.proto)],
+    }),
+  };
+}
+
+function handleFileDescriptorResponseV1Alpha(file: GenFile) {
+  return {
+    case: "fileDescriptorResponse" as const,
+    value: create(FileDescriptorResponseSchemaV1Alpha, {
+      fileDescriptorProto: [toBinary(FileDescriptorProtoSchema, file.proto)],
+    }),
+  };
+}
+
+function getServicesList(registry: ReflectionRegistry) {
+  return registry.getFiles().flatMap((file) =>
+    file.services.map((svc) => ({
+      name: svc.typeName,
+    }))
+  );
+}
+
 export function withReflection(
   registerServices: (router: ConnectRouter) => void
 ) {
   return (router: ConnectRouter) => {
     const reflectionRouter = new ReflectionRouter(router);
     registerServices(reflectionRouter);
+    const registry = ReflectionRegistry.getInstance();
 
     router.service(ServerReflection, {
       async *serverReflectionInfo(
         requests: AsyncIterable<ServerReflectionRequest>
       ): AsyncIterable<ServerReflectionResponse> {
-        const registry = ReflectionRegistry.getInstance();
-
         for await (const request of requests) {
           const response = create(ServerReflectionResponseSchema, {
             validHost: request.host,
@@ -111,16 +137,9 @@ export function withReflection(
                   request.messageRequest.value
                 );
                 if (file) {
-                  response.messageResponse = {
-                    case: "fileDescriptorResponse" as const,
-                    value: create(FileDescriptorResponseSchema, {
-                      fileDescriptorProto: [
-                        toBinary(FileDescriptorProtoSchema, file.proto),
-                      ],
-                    }),
-                  };
-                  break;
+                  response.messageResponse = handleFileDescriptorResponse(file);
                 }
+                break;
               }
 
               case "fileContainingSymbol": {
@@ -128,25 +147,13 @@ export function withReflection(
                   request.messageRequest.value
                 );
                 if (file) {
-                  response.messageResponse = {
-                    case: "fileDescriptorResponse" as const,
-                    value: create(FileDescriptorResponseSchema, {
-                      fileDescriptorProto: [
-                        toBinary(FileDescriptorProtoSchema, file.proto),
-                      ],
-                    }),
-                  };
-                  break;
+                  response.messageResponse = handleFileDescriptorResponse(file);
                 }
+                break;
               }
 
               case "listServices": {
-                const services = registry.getFiles().flatMap((file) =>
-                  file.services.map((svc) => ({
-                    name: svc.typeName,
-                  }))
-                );
-
+                const services = getServicesList(registry);
                 response.messageResponse = {
                   case: "listServicesResponse",
                   value: create(ListServiceResponseSchema, {
@@ -157,15 +164,13 @@ export function withReflection(
                 };
                 break;
               }
-
-              // Add other cases as needed
             }
           } catch (error) {
             console.error("Error in serverReflectionInfo:", error);
             response.messageResponse = {
               case: "errorResponse",
               value: create(ErrorResponseSchema, {
-                errorCode: 13, // INTERNAL
+                errorCode: 13,
                 errorMessage:
                   error instanceof Error ? error.message : "Unknown error",
               }),
@@ -181,8 +186,6 @@ export function withReflection(
       async *serverReflectionInfo(
         requests: AsyncIterable<ServerReflectionV1AlphaRequest>
       ): AsyncIterable<ServerReflectionV1AlphaResponse> {
-        const registry = ReflectionRegistry.getInstance();
-
         for await (const request of requests) {
           const response = create(ServerReflectionV1AlphaResponseSchema, {
             validHost: request.host,
@@ -196,16 +199,10 @@ export function withReflection(
                   request.messageRequest.value
                 );
                 if (file) {
-                  response.messageResponse = {
-                    case: "fileDescriptorResponse" as const,
-                    value: create(FileDescriptorResponseSchemaV1Alpha, {
-                      fileDescriptorProto: [
-                        toBinary(FileDescriptorProtoSchema, file.proto),
-                      ],
-                    }),
-                  };
-                  break;
+                  response.messageResponse =
+                    handleFileDescriptorResponseV1Alpha(file);
                 }
+                break;
               }
 
               case "fileContainingSymbol": {
@@ -213,25 +210,14 @@ export function withReflection(
                   request.messageRequest.value
                 );
                 if (file) {
-                  response.messageResponse = {
-                    case: "fileDescriptorResponse" as const,
-                    value: create(FileDescriptorResponseSchemaV1Alpha, {
-                      fileDescriptorProto: [
-                        toBinary(FileDescriptorProtoSchema, file.proto),
-                      ],
-                    }),
-                  };
+                  response.messageResponse =
+                    handleFileDescriptorResponseV1Alpha(file);
                 }
                 break;
               }
 
               case "listServices": {
-                const services = registry.getFiles().flatMap((file) =>
-                  file.services.map((svc) => ({
-                    name: svc.typeName,
-                  }))
-                );
-
+                const services = getServicesList(registry);
                 response.messageResponse = {
                   case: "listServicesResponse",
                   value: create(ListServiceResponseSchemaV1Alpha, {
@@ -242,8 +228,6 @@ export function withReflection(
                 };
                 break;
               }
-
-              // Add other cases as needed
             }
           } catch (error) {
             console.error("Error in serverReflectionInfo:", error);
