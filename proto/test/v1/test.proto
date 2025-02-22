@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package test.v1;
+
+service TestService {
+  rpc TestMethod(TestRequest) returns (TestResponse) {}
+}
+
+message TestRequest {
+  // Add any fields you need for testing
+}
+
+message TestResponse {
+  // Add any fields you need for testing
+} 

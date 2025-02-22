@@ -28,6 +28,7 @@ class ReflectionRegistry {
   private static instance: ReflectionRegistry;
   private files: Set<GenFile> = new Set();
   private serviceMap: Map<string, GenFile> = new Map();
+  private messageMap: Map<string, GenFile> = new Map();
 
   static getInstance(): ReflectionRegistry {
     if (!this.instance) {
@@ -41,6 +42,9 @@ class ReflectionRegistry {
     file.services.forEach((svc) => {
       this.serviceMap.set(svc.typeName, file);
     });
+    file.messages.forEach((msg) => {
+      this.messageMap.set(msg.typeName, file);
+    });
   }
 
   getFiles(): GenFile[] {
@@ -48,11 +52,19 @@ class ReflectionRegistry {
   }
 
   findFileByName(filename: string): GenFile | undefined {
-    return this.getFiles().find((file) => file.name === filename);
+    // Remove .proto extension if present for comparison
+    const normalizedFilename = filename.replace(/\.proto$/, "");
+
+    return this.getFiles().find(
+      (file) =>
+        file.name === normalizedFilename ||
+        file.name.endsWith("/" + normalizedFilename) ||
+        file.name.endsWith("\\" + normalizedFilename)
+    );
   }
 
   findFileBySymbol(symbol: string): GenFile | undefined {
-    return this.serviceMap.get(symbol);
+    return this.serviceMap.get(symbol) || this.messageMap.get(symbol);
   }
 }
 
@@ -87,19 +99,21 @@ class ReflectionRouter implements ConnectRouter {
 
 // New helper functions to handle common reflection logic
 function handleFileDescriptorResponse(file: GenFile) {
+  const fileDescriptor = toBinary(FileDescriptorProtoSchema, file.proto);
   return {
     case: "fileDescriptorResponse" as const,
     value: create(FileDescriptorResponseSchema, {
-      fileDescriptorProto: [toBinary(FileDescriptorProtoSchema, file.proto)],
+      fileDescriptorProto: [fileDescriptor],
     }),
   };
 }
 
 function handleFileDescriptorResponseV1Alpha(file: GenFile) {
+  const fileDescriptor = toBinary(FileDescriptorProtoSchema, file.proto);
   return {
     case: "fileDescriptorResponse" as const,
     value: create(FileDescriptorResponseSchemaV1Alpha, {
-      fileDescriptorProto: [toBinary(FileDescriptorProtoSchema, file.proto)],
+      fileDescriptorProto: [fileDescriptor],
     }),
   };
 }
@@ -138,6 +152,14 @@ export function withReflection(
                 );
                 if (file) {
                   response.messageResponse = handleFileDescriptorResponse(file);
+                } else {
+                  response.messageResponse = {
+                    case: "errorResponse",
+                    value: create(ErrorResponseSchema, {
+                      errorCode: 13,
+                      errorMessage: `File not found: ${request.messageRequest.value}`,
+                    }),
+                  };
                 }
                 break;
               }
@@ -148,6 +170,14 @@ export function withReflection(
                 );
                 if (file) {
                   response.messageResponse = handleFileDescriptorResponse(file);
+                } else {
+                  response.messageResponse = {
+                    case: "errorResponse",
+                    value: create(ErrorResponseSchema, {
+                      errorCode: 13,
+                      errorMessage: `Symbol not found: ${request.messageRequest.value}`,
+                    }),
+                  };
                 }
                 break;
               }
@@ -201,6 +231,14 @@ export function withReflection(
                 if (file) {
                   response.messageResponse =
                     handleFileDescriptorResponseV1Alpha(file);
+                } else {
+                  response.messageResponse = {
+                    case: "errorResponse",
+                    value: create(ErrorResponseSchemaV1Alpha, {
+                      errorCode: 13,
+                      errorMessage: `File not found: ${request.messageRequest.value}`,
+                    }),
+                  };
                 }
                 break;
               }
@@ -212,6 +250,14 @@ export function withReflection(
                 if (file) {
                   response.messageResponse =
                     handleFileDescriptorResponseV1Alpha(file);
+                } else {
+                  response.messageResponse = {
+                    case: "errorResponse",
+                    value: create(ErrorResponseSchemaV1Alpha, {
+                      errorCode: 13,
+                      errorMessage: `Symbol not found: ${request.messageRequest.value}`,
+                    }),
+                  };
                 }
                 break;
               }

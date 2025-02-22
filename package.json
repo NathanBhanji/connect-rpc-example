@@ -8,7 +8,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "gen": "buf generate"
+    "gen": "buf generate",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "keywords": [],
   "author": "Nathan Bhanji",
@@ -25,7 +28,12 @@
     "typescript": "^5.7.3"
   },
   "devDependencies": {
+    "@swc/core": "^1.10.18",
+    "@swc/jest": "^0.2.37",
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.13.4",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
     "typescript": "^5.0.0"
   }
 }

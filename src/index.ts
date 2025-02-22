@@ -7,10 +7,10 @@ import { getPort } from "@src/utils/port.js";
 
 const server = fastify({
   http2: true,
-  https: {
+  /* https: {
     key: fs.readFileSync("server.key"),
     cert: fs.readFileSync("server.cert"),
-  },
+  }, */
 });
 
 await server.register(fastifyConnectPlugin, {
